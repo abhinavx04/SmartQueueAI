@@ -1,0 +1,13 @@
+# Byte-compiled / cached
+__pycache__/
+*.py[cod]
+
+# Trained models (too large for GitHub)
+*.pkl
+
+# Environment
+.env
+
+# OS
+Thumbs.db
+.DS_Store
