@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from routers import health, prediction, recommendation, wait_time
+from routers import health, prediction, recommendation, wait_time, analytics
 
 # ── Application ───────────────────────────────────────────────────────
 app = FastAPI(
@@ -38,6 +38,7 @@ app.include_router(health.router)
 app.include_router(prediction.router)
 app.include_router(recommendation.router)
 app.include_router(wait_time.router)
+app.include_router(analytics.router)
 
 
 # ── Global Exception Handler ─────────────────────────────────────────
