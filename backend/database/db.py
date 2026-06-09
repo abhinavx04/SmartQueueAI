@@ -27,7 +27,8 @@ import mysql.connector
 from mysql.connector import pooling, Error as MySQLError
 
 # Load environment variables
-load_dotenv()
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(_BASE_DIR, ".env"))
 
 logger = logging.getLogger(__name__)
 
@@ -197,8 +198,9 @@ def save_prediction(
         datetime.now(),
     )
 
-    conn = get_connection()
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(query, values)
         conn.commit()
@@ -207,8 +209,10 @@ def save_prediction(
             station_name, subway_line, predicted_congestion, estimated_wait_time,
         )
     except MySQLError as e:
-        conn.rollback()
+        if conn:
+            conn.rollback()
         logger.error("Failed to save prediction: %s", e)
         raise
     finally:
-        conn.close()
+        if conn:
+            conn.close()

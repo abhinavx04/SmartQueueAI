@@ -62,8 +62,9 @@ def get_congestion_distribution() -> List[Dict[str, Any]]:
     FROM predictions
     GROUP BY level
     """
-    conn = get_connection()
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -76,11 +77,17 @@ def get_congestion_distribution() -> List[Dict[str, Any]]:
             {"level": "High", "count": counts.get("High", 0)},
             {"level": "Critical", "count": counts.get("Critical", 0)},
         ]
-    except mysql.connector.Error as e:
+    except Exception as e:
         logger.error("Failed to fetch congestion distribution: %s", e)
-        return []
+        return [
+            {"level": "Low", "count": 0},
+            {"level": "Moderate", "count": 0},
+            {"level": "High", "count": 0},
+            {"level": "Critical", "count": 0},
+        ]
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
 def get_recent_history(limit: int = 20) -> List[Dict[str, Any]]:
@@ -91,8 +98,9 @@ def get_recent_history(limit: int = 20) -> List[Dict[str, Any]]:
     ORDER BY prediction_time DESC
     LIMIT %s
     """
-    conn = get_connection()
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(query, (limit,))
         rows = cursor.fetchall()
@@ -103,11 +111,12 @@ def get_recent_history(limit: int = 20) -> List[Dict[str, Any]]:
                 row["prediction_time"] = row["prediction_time"].isoformat()
                 
         return rows
-    except mysql.connector.Error as e:
+    except Exception as e:
         logger.error("Failed to fetch prediction history: %s", e)
         return []
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
 def get_wait_time_trends() -> List[Dict[str, Any]]:
@@ -118,23 +127,22 @@ def get_wait_time_trends() -> List[Dict[str, Any]]:
     GROUP BY hour_value
     ORDER BY hour_value
     """
-    conn = get_connection()
+    # All 40 time slots in the dataset (float hours, 30-min granularity, GT-01)
+    all_slots = (
+        [h + m for h in range(5, 24) for m in (0.0, 0.5)]
+        + [0.0, 0.5]
+    )
+    conn = None
     try:
+        conn = get_connection()
         cursor = conn.cursor(dictionary=True)
         cursor.execute(query)
         rows = cursor.fetchall()
-        
-        # All 40 time slots in the dataset (float hours, 30-min granularity, GT-01)
-        all_slots = (
-            [h + m for h in range(5, 24) for m in (0.0, 0.5)]
-            + [0.0, 0.5]
-        )
         data_dict = {row["hour"]: float(row["avg_wait_time"]) for row in rows}
         return [{"hour": slot, "avg_wait_time": data_dict.get(slot, 0.0)} for slot in all_slots]
-    except mysql.connector.Error as e:
+    except Exception as e:
         logger.error("Failed to fetch wait time trends: %s", e)
-        return [{"hour": slot, "avg_wait_time": 0.0} for slot in (
-            [h + m for h in range(5, 24) for m in (0.0, 0.5)] + [0.0, 0.5]
-        )]
+        return [{"hour": slot, "avg_wait_time": 0.0} for slot in all_slots]
     finally:
-        conn.close()
+        if conn:
+            conn.close()
