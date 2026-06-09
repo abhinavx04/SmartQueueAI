@@ -27,9 +27,12 @@ export default function DashboardPage() {
     QUICK_STATIONS.map((s) => ({ ...s, result: null, loading: true }))
   );
 
-  const currentHour = new Date().getHours();
+  const now = new Date();
+  const currentHour = now.getHours();
   const isRushHour = (currentHour >= 7 && currentHour <= 9) || (currentHour >= 17 && currentHour <= 19);
-  const isWeekend = [0, 6].includes(new Date().getDay());
+  // GT-07: 3-class day type — 0=Weekday, 1=Saturday, 2=Sunday
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ... 6=Sat
+  const dayType = dayOfWeek === 0 ? 2 : dayOfWeek === 6 ? 1 : 0;
 
   useEffect(() => {
     // Check API health
@@ -40,9 +43,8 @@ export default function DashboardPage() {
     // Fetch live predictions for popular stations
     QUICK_STATIONS.forEach((s, i) => {
       predictCongestion({
-        hour: currentHour,
-        is_weekend: isWeekend ? 1 : 0,
-        rush_hour: isRushHour ? 1 : 0,
+        hour: currentHour,        // GT-01: float (whole hours still valid)
+        day_type: dayType,        // GT-07: 0=Weekday, 1=Saturday, 2=Sunday
         line: s.line,
         station: s.station,
         direction: s.direction,
@@ -108,7 +110,7 @@ export default function DashboardPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Day Type</p>
           <p className="mt-2 text-lg font-bold text-slate-900 dark:text-white">
-            {isWeekend ? "Weekend" : "Weekday"}
+            {dayType === 2 ? "Sunday" : dayType === 1 ? "Saturday" : "Weekday"}
           </p>
         </div>
 

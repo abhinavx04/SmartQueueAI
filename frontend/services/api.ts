@@ -86,3 +86,12 @@ export async function getHistory(limit: number = 20): Promise<HistoryResponse> {
 export async function getTrends(): Promise<TrendResponse> {
   return apiFetch<TrendResponse>("/analytics/trends");
 }
+
+export interface StationItem {
+  line: string;
+  station: string;
+}
+
+export async function getStations(): Promise<StationItem[]> {
+  return apiFetch<StationItem[]>("/stations");
+}

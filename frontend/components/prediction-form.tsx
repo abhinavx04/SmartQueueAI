@@ -1,7 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { SUBWAY_LINES, DIRECTIONS, STATIONS } from "@/types";
+import { useState, useEffect } from "react";
+import { SUBWAY_LINES, DIRECTIONS, DAY_TYPE_OPTIONS, getHourOptions } from "@/types";
+import { getStations, type StationItem } from "@/services/api";
+
+/**
+ * PredictionForm — audit-remediated version.
+ *
+ * Schema changes vs. original:
+ *   - hour: float with 30-min granularity (GT-01: was integer)
+ *   - day_type: 0=Weekday, 1=Saturday, 2=Sunday (GT-07: was binary is_weekend)
+ *   - rush_hour field: REMOVED — computed server-side (GT-06)
+ */
 
 interface PredictionFormProps {
   /** Whether to include the station field (prediction needs it, recommendation does not) */
@@ -11,8 +21,7 @@ interface PredictionFormProps {
   /** Submit handler */
   onSubmit: (data: {
     hour: number;
-    is_weekend: number;
-    rush_hour: number;
+    day_type: number;
     line: string;
     station: string;
     direction: string;
@@ -24,46 +33,87 @@ export default function PredictionForm({
   loading = false,
   onSubmit,
 }: PredictionFormProps) {
-  const [hour, setHour] = useState(8);
-  const [isWeekend, setIsWeekend] = useState(0);
-  const [rushHour, setRushHour] = useState(1);
+  const [hour, setHour] = useState<number>(8.0);
+  const [dayType, setDayType] = useState<number>(0);
   const [line, setLine] = useState("1호선");
   const [station, setStation] = useState("서울역");
   const [direction, setDirection] = useState("상선");
+  const [allStations, setAllStations] = useState<StationItem[]>([]);
+
+  useEffect(() => {
+    getStations()
+      .then((data) => {
+        setAllStations(data);
+        // Set initial station correctly for 1호선
+        const initialOn1 = data.filter((s) => s.line === "1호선");
+        if (initialOn1.length > 0) {
+          setStation(initialOn1[0].station);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load stations dynamically:", err);
+      });
+  }, []);
+
+  // Filter stations based on selected line, with fallback if not loaded/loading
+  const filteredStations = allStations.length > 0
+    ? allStations.filter((s) => s.line === line).map((s) => s.station)
+    : [
+        "서울역", "강남", "종로3가", "동대문", "잠실",
+        "신도림", "시청", "건대입구", "홍대입구", "신촌",
+        "여의도", "광화문", "사당", "왕십리", "고속터미널"
+      ];
+
+  const handleLineChange = (newLine: string) => {
+    setLine(newLine);
+    const stationsOnNewLine = allStations.filter((s) => s.line === newLine);
+    if (stationsOnNewLine.length > 0) {
+      setStation(stationsOnNewLine[0].station);
+    } else {
+      if (newLine === "1호선") setStation("서울역");
+      else if (newLine === "2호선") setStation("강남");
+      else if (newLine === "3호선") setStation("종로3가");
+    }
+  };
+
+  const hourOptions = getHourOptions();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit({ hour, is_weekend: isWeekend, rush_hour: rushHour, line, station, direction });
+    onSubmit({ hour, day_type: dayType, line, station, direction });
   };
+
+  // Compute whether selected hour is rush hour for display hint only
+  const isRush = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Hour */}
+        {/* Hour — 30-minute granularity (GT-01) */}
         <div className="space-y-1.5">
           <label htmlFor="hour" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Hour
+            Time
+            {isRush && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                ⚡ Rush Hour
+              </span>
+            )}
           </label>
           <select
             id="hour"
             value={hour}
-            onChange={(e) => {
-              const h = Number(e.target.value);
-              setHour(h);
-              setRushHour((h >= 7 && h <= 9) || (h >= 17 && h <= 19) ? 1 : 0);
-            }}
+            onChange={(e) => setHour(Number(e.target.value))}
             className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
-            {Array.from({ length: 24 }, (_, i) => (
-              <option key={i} value={i}>
-                {String(i).padStart(2, "0")}:00
-                {(i >= 7 && i <= 9) || (i >= 17 && i <= 19) ? " (Rush)" : ""}
+            {hourOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Line */}
+        {/* Subway Line */}
         <div className="space-y-1.5">
           <label htmlFor="line" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Subway Line
@@ -71,7 +121,7 @@ export default function PredictionForm({
           <select
             id="line"
             value={line}
-            onChange={(e) => setLine(e.target.value)}
+            onChange={(e) => handleLineChange(e.target.value)}
             className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
             {SUBWAY_LINES.map((l) => (
@@ -111,42 +161,29 @@ export default function PredictionForm({
               onChange={(e) => setStation(e.target.value)}
               className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
             >
-              {STATIONS.map((s) => (
+              {filteredStations.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
           </div>
         )}
 
-        {/* Day Type */}
+        {/* Day Type — 3-class encoding (GT-07: replaces binary is_weekend) */}
         <div className="space-y-1.5">
           <label htmlFor="dayType" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Day Type
           </label>
           <select
             id="dayType"
-            value={isWeekend}
-            onChange={(e) => setIsWeekend(Number(e.target.value))}
+            value={dayType}
+            onChange={(e) => setDayType(Number(e.target.value))}
             className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
           >
-            <option value={0}>Weekday</option>
-            <option value={1}>Weekend / Holiday</option>
-          </select>
-        </div>
-
-        {/* Rush Hour (auto-set but editable) */}
-        <div className="space-y-1.5">
-          <label htmlFor="rushHour" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Rush Hour
-          </label>
-          <select
-            id="rushHour"
-            value={rushHour}
-            onChange={(e) => setRushHour(Number(e.target.value))}
-            className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-          >
-            <option value={1}>Yes (7-9 AM, 5-7 PM)</option>
-            <option value={0}>No</option>
+            {DAY_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
           </select>
         </div>
       </div>

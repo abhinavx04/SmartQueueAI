@@ -220,13 +220,23 @@ export default function AnalyticsPage() {
                     axisLine={false} 
                     tickLine={false} 
                     tick={{fill: '#64748b', fontSize: 12}} 
-                    tickFormatter={(val) => `${val}:00`}
+                    tickFormatter={(val) => {
+                      const num = Number(val);
+                      const h = Math.floor(num);
+                      const m = num % 1 === 0 ? "00" : "30";
+                      return `${String(h).padStart(2, "0")}:${m}`;
+                    }}
                   />
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                   <Tooltip 
                     contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                    formatter={(value: number) => [`${value.toFixed(1)} mins`, 'Avg Wait Time']}
-                    labelFormatter={(label) => `${label}:00`}
+                    formatter={(value: any) => [`${Number(value).toFixed(1)} mins`, 'Avg Wait Time']}
+                    labelFormatter={(label) => {
+                      const num = Number(label);
+                      const h = Math.floor(num);
+                      const m = num % 1 === 0 ? "00" : "30";
+                      return `${String(h).padStart(2, "0")}:${m}`;
+                    }}
                   />
                   <Line type="monotone" dataKey="avg_wait_time" stroke="#8b5cf6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
                 </LineChart>

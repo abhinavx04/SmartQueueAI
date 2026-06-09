@@ -6,6 +6,8 @@ Provides data for the Analytics Dashboard:
 - Aggregated insights (distribution, trends, history) from the MySQL database.
 """
 
+import os
+import joblib
 import logging
 from typing import List, Dict, Any
 import mysql.connector
@@ -15,12 +17,25 @@ from services.prediction_service import model  # Reuse loaded model
 
 logger = logging.getLogger(__name__)
 
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_MODEL_DIR = os.path.join(_BASE_DIR, "models")
+
 
 def get_feature_importances() -> List[Dict[str, Any]]:
-    """Return the feature importances from the Random Forest model."""
-    feature_names = ["Hour", "IsWeekend", "RushHour", "Line", "Station", "Direction"]
-    importances = model.feature_importances_
+    """Return the feature importances (permutation importance if available, fallback to Gini)."""
+    feature_names = ["Hour", "DayType", "HourSin", "HourCos", "Line", "Station", "Direction", "StationNumber"]
     
+    try:
+        importances_path = os.path.join(_MODEL_DIR, "permutation_importance.pkl")
+        if os.path.exists(importances_path):
+            p_imp = joblib.load(importances_path)
+            importances = p_imp.importances_mean
+        else:
+            importances = model.feature_importances_
+    except Exception as e:
+        logger.warning("Failed to load permutation importance: %s. Falling back to Gini.", e)
+        importances = model.feature_importances_
+
     result = []
     for name, imp in zip(feature_names, importances):
         result.append({"feature": name, "importance": float(imp)})
@@ -109,11 +124,17 @@ def get_wait_time_trends() -> List[Dict[str, Any]]:
         cursor.execute(query)
         rows = cursor.fetchall()
         
-        # Fill in missing hours
+        # All 40 time slots in the dataset (float hours, 30-min granularity, GT-01)
+        all_slots = (
+            [h + m for h in range(5, 24) for m in (0.0, 0.5)]
+            + [0.0, 0.5]
+        )
         data_dict = {row["hour"]: float(row["avg_wait_time"]) for row in rows}
-        return [{"hour": h, "avg_wait_time": data_dict.get(h, 0.0)} for h in range(24)]
+        return [{"hour": slot, "avg_wait_time": data_dict.get(slot, 0.0)} for slot in all_slots]
     except mysql.connector.Error as e:
         logger.error("Failed to fetch wait time trends: %s", e)
-        return [{"hour": h, "avg_wait_time": 0.0} for h in range(24)]
+        return [{"hour": slot, "avg_wait_time": 0.0} for slot in (
+            [h + m for h in range(5, 24) for m in (0.0, 0.5)] + [0.0, 0.5]
+        )]
     finally:
         conn.close()

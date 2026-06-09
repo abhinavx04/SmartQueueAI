@@ -13,15 +13,21 @@ export default function RecommendPage() {
 
   const handleRecommend = async (data: {
     hour: number;
-    is_weekend: number;
-    rush_hour: number;
+    day_type: number;  // GT-07: 0=Weekday, 1=Saturday, 2=Sunday
     line: string;
     direction: string;
+    station: string;   // Current station selected by user
   }) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await getRecommendations(data);
+      const response = await getRecommendations({
+        hour: data.hour,
+        day_type: data.day_type,
+        line: data.line,
+        direction: data.direction,
+        current_station: data.station, // NM-05: Exclude current station
+      });
       setRecommendations(response.recommendations);
     } catch (err: any) {
       setError(err.message || "Failed to fetch recommendations");
@@ -51,7 +57,7 @@ export default function RecommendPage() {
               </svg>
               Filter Route
             </h2>
-            <PredictionForm includeStation={false} loading={loading} onSubmit={handleRecommend} />
+            <PredictionForm includeStation={true} loading={loading} onSubmit={handleRecommend} />
           </div>
 
           {error && (

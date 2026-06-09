@@ -37,7 +37,7 @@ class HistoryResponse(BaseModel):
 
 
 class TrendItem(BaseModel):
-    hour: int
+    hour: float  # FLOAT: matches hour_value column (e.g. 8.0, 8.5) — GT-01
     avg_wait_time: float
 
 

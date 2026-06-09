@@ -31,11 +31,11 @@ router = APIRouter(tags=["Recommendation"])
 def recommend(request: RecommendationRequest) -> RecommendationResponse:
     df = recommend_less_crowded_stations(
         hour=request.hour,
-        is_weekend=request.is_weekend,
-        rush_hour=request.rush_hour,
+        day_type=request.day_type,
         line=request.line,
         direction=request.direction,
         top_n=10,
+        current_station=request.current_station,  # NM-05: exclude user's own station
     )
 
     recommendations = [
