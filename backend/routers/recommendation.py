@@ -29,7 +29,7 @@ router = APIRouter(tags=["Recommendation"])
     ),
 )
 def recommend(request: RecommendationRequest) -> RecommendationResponse:
-    df = recommend_less_crowded_stations(
+    recommendations_list = recommend_less_crowded_stations(
         hour=request.hour,
         day_type=request.day_type,
         line=request.line,
@@ -40,10 +40,10 @@ def recommend(request: RecommendationRequest) -> RecommendationResponse:
 
     recommendations = [
         StationCongestion(
-            station=row["Station"],
-            predicted_congestion=round(row["Predicted_Congestion"], 2),
+            station=station,
+            predicted_congestion=round(float(congestion), 2),
         )
-        for _, row in df.iterrows()
+        for station, congestion in recommendations_list
     ]
 
     return RecommendationResponse(recommendations=recommendations)

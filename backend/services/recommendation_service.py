@@ -7,6 +7,7 @@ least congested options.
 """
 
 import os
+import heapq
 import numpy as np
 import pandas as pd
 
@@ -37,10 +38,10 @@ def recommend_less_crowded_stations(
     direction: str,
     top_n: int = 5,
     current_station: str | None = None,
-) -> pd.DataFrame:
+) -> list[tuple[str, float]]:
     """
     Return the *top_n* least-congested stations for the given context,
-    constrained to the requested line and optimized via batch inference.
+    constrained to the requested line and optimized via Top-K heap ranking.
 
     Parameters
     ----------
@@ -54,7 +55,7 @@ def recommend_less_crowded_stations(
 
     Returns
     -------
-    pd.DataFrame with columns ['Station', 'Predicted_Congestion'],
+    list[tuple[str, float]] of (station, predicted_congestion) pairs,
     sorted ascending by predicted congestion.
     """
     # 1. Retrieve valid stations on this line (GT-02)
@@ -63,7 +64,7 @@ def recommend_less_crowded_stations(
     if current_station:
         stations_on_line = [s for s in stations_on_line if s != current_station]
     if not stations_on_line:
-        return pd.DataFrame(columns=["Station", "Predicted_Congestion"])
+        return []
 
     # 2. Encode common inputs
     try:
@@ -71,7 +72,7 @@ def recommend_less_crowded_stations(
         direction_encoded = direction_encoder.transform([direction])[0]
     except Exception:
         # If the requested line or direction is unknown, return empty
-        return pd.DataFrame(columns=["Station", "Predicted_Congestion"])
+        return []
 
     hour_sin = np.sin(2 * np.pi * hour / 24.0)
     hour_cos = np.cos(2 * np.pi * hour / 24.0)
@@ -89,7 +90,7 @@ def recommend_less_crowded_stations(
             pass
 
     if not valid_stations:
-        return pd.DataFrame(columns=["Station", "Predicted_Congestion"])
+        return []
 
     # 4. Construct input DataFrame for single batch prediction (GT-08)
     batch_df = pd.DataFrame({
@@ -106,10 +107,9 @@ def recommend_less_crowded_stations(
     # 5. Run prediction
     predictions = model.predict(batch_df)
 
-    # 6. Build and sort result
-    recommendations_df = pd.DataFrame({
-        "Station": valid_stations,
-        "Predicted_Congestion": predictions,
-    })
-    recommendations_df = recommendations_df.sort_values(by="Predicted_Congestion")
-    return recommendations_df.head(top_n)
+    # 6. Build and rank result using heapq (Top-K Heap ranking returning tuples)
+    return heapq.nsmallest(
+        top_n,
+        zip(valid_stations, predictions),
+        key=lambda x: x[1]
+    )
