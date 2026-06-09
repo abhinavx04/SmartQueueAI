@@ -28,8 +28,9 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="min-h-full bg-slate-50 dark:bg-slate-950">
+      <body className="min-h-full bg-slate-50 dark:bg-slate-950" suppressHydrationWarning>
         <Sidebar />
         <main className="ml-64 min-h-screen">
           <div className="mx-auto max-w-6xl px-8 py-8">{children}</div>

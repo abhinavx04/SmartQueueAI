@@ -96,3 +96,44 @@ export const STATIONS = [
   "신도림", "시청", "건대입구", "홍대입구", "신촌",
   "여의도", "광화문", "사당", "왕십리", "고속터미널"
 ];
+
+// ── Analytics ────────────────────────────────────────────────────────
+
+export interface FeatureImportanceItem {
+  feature: string;
+  importance: number;
+}
+
+export interface FeatureImportanceResponse {
+  items: FeatureImportanceItem[];
+}
+
+export interface DistributionItem {
+  level: string;
+  count: number;
+}
+
+export interface DistributionResponse {
+  items: DistributionItem[];
+}
+
+export interface HistoryItem {
+  id: number;
+  station_name: string;
+  subway_line: string;
+  predicted_congestion: number;
+  prediction_time: string;
+}
+
+export interface HistoryResponse {
+  items: HistoryItem[];
+}
+
+export interface TrendItem {
+  hour: number;
+  avg_wait_time: number;
+}
+
+export interface TrendResponse {
+  items: TrendItem[];
+}

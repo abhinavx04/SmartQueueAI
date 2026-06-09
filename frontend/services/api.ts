@@ -61,3 +61,28 @@ export async function getRecommendations(
     body: JSON.stringify(data),
   });
 }
+
+// ── Analytics ────────────────────────────────────────────────────────
+
+import type {
+  FeatureImportanceResponse,
+  DistributionResponse,
+  HistoryResponse,
+  TrendResponse,
+} from "@/types";
+
+export async function getFeatureImportance(): Promise<FeatureImportanceResponse> {
+  return apiFetch<FeatureImportanceResponse>("/analytics/feature-importance");
+}
+
+export async function getDistribution(): Promise<DistributionResponse> {
+  return apiFetch<DistributionResponse>("/analytics/distribution");
+}
+
+export async function getHistory(limit: number = 20): Promise<HistoryResponse> {
+  return apiFetch<HistoryResponse>(`/analytics/history?limit=${limit}`);
+}
+
+export async function getTrends(): Promise<TrendResponse> {
+  return apiFetch<TrendResponse>("/analytics/trends");
+}
