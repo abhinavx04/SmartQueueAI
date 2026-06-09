@@ -90,3 +90,9 @@ export const SUBWAY_LINES = [
 ];
 
 export const DIRECTIONS = ["상선", "하선"];
+
+export const STATIONS = [
+  "서울역", "강남", "종로3가", "동대문", "잠실", 
+  "신도림", "시청", "건대입구", "홍대입구", "신촌",
+  "여의도", "광화문", "사당", "왕십리", "고속터미널"
+];

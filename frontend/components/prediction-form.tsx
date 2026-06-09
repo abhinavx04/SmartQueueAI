@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SUBWAY_LINES, DIRECTIONS } from "@/types";
+import { SUBWAY_LINES, DIRECTIONS, STATIONS } from "@/types";
 
 interface PredictionFormProps {
   /** Whether to include the station field (prediction needs it, recommendation does not) */
@@ -105,15 +105,16 @@ export default function PredictionForm({
             <label htmlFor="station" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Station
             </label>
-            <input
+            <select
               id="station"
-              type="text"
               value={station}
               onChange={(e) => setStation(e.target.value)}
-              placeholder="e.g. 서울역"
-              required
-              className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
-            />
+              className="flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm transition-colors focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+            >
+              {STATIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
         )}
 
