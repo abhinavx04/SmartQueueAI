@@ -225,7 +225,7 @@ export default function AnalyticsPage() {
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                   <Tooltip 
                     contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
-                    formatter={(value: number) => [`${value.toFixed(1)} mins`, 'Avg Wait Time']}
+                    formatter={(value: any) => [`${Number(value).toFixed(1)} mins`, 'Avg Wait Time']}
                     labelFormatter={(label) => `${label}:00`}
                   />
                   <Line type="monotone" dataKey="avg_wait_time" stroke="#8b5cf6" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
