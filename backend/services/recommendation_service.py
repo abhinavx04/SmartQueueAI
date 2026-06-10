@@ -22,14 +22,6 @@ _df = pd.read_csv(_DATASET_PATH)
 # Build a lookup of line name to unique stations on that line
 _LINE_STATIONS_MAP = _df.groupby("호선")["출발역"].unique().apply(list).to_dict()
 
-# Build a lookup of station name to its station number (geographic feature)
-_STATION_NUMBER_MAP: dict[str, int] = (
-    _df[["출발역", "역번호"]]
-    .drop_duplicates("출발역")
-    .set_index("출발역")["역번호"]
-    .to_dict()
-)
-
 
 def recommend_less_crowded_stations(
     hour: float,
@@ -74,8 +66,11 @@ def recommend_less_crowded_stations(
         # If the requested line or direction is unknown, return empty
         return []
 
-    hour_sin = np.sin(2 * np.pi * hour / 24.0)
-    hour_cos = np.cos(2 * np.pi * hour / 24.0)
+    # Map day_type (0=weekday, 1=saturday, 2=sunday) → IsWeekend (0 or 1)
+    is_weekend = 1 if day_type >= 1 else 0
+
+    # Compute RushHour server-side (7-9 AM or 5-7 PM)
+    rush_hour = 1 if (7.0 <= hour <= 9.0) or (17.0 <= hour <= 19.0) else 0
 
     # 3. Filter and encode stations in batch (GT-08)
     valid_stations = []
@@ -92,16 +87,15 @@ def recommend_less_crowded_stations(
     if not valid_stations:
         return []
 
-    # 4. Construct input DataFrame for single batch prediction (GT-08)
+    # 4. Construct input DataFrame for single batch prediction
+    # Model features: ['Hour', 'IsWeekend', 'RushHour', '호선_encoded', '출발역_encoded', '상하구분_encoded']
     batch_df = pd.DataFrame({
         "Hour":            [float(hour)] * len(valid_stations),
-        "DayType":         [int(day_type)] * len(valid_stations),
-        "HourSin":         [hour_sin] * len(valid_stations),
-        "HourCos":         [hour_cos] * len(valid_stations),
+        "IsWeekend":       [is_weekend] * len(valid_stations),
+        "RushHour":        [rush_hour] * len(valid_stations),
         "호선_encoded":    [line_encoded] * len(valid_stations),
         "출발역_encoded":  station_enc_list,
         "상하구분_encoded": [direction_encoded] * len(valid_stations),
-        "StationNumber":   [int(_STATION_NUMBER_MAP.get(s, 0)) for s in valid_stations],
     })
 
     # 5. Run prediction

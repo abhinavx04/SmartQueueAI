@@ -1,9 +1,9 @@
 """
 Congestion prediction service.
 
-Loads the trained HistGradientBoosting model and LabelEncoders from disk,
-then exposes predict_congestion() with the updated 8-feature set:
-  Hour, DayType, HourSin, HourCos, Line, Station, Direction, StationNumber
+Loads the trained model and LabelEncoders from disk,
+then exposes predict_congestion() with the model's actual 6-feature set:
+  Hour, IsWeekend, RushHour, 호선_encoded, 출발역_encoded, 상하구분_encoded
 """
 
 import os
@@ -20,15 +20,6 @@ model             = joblib.load(os.path.join(_MODEL_DIR, "queue_prediction_model
 line_encoder      = joblib.load(os.path.join(_MODEL_DIR, "line_encoder.pkl"))
 station_encoder   = joblib.load(os.path.join(_MODEL_DIR, "station_encoder.pkl"))
 direction_encoder = joblib.load(os.path.join(_MODEL_DIR, "direction_encoder.pkl"))
-
-# ── Station number lookup (역번호) — geographic feature ───────────────
-_DATASET_PATH = os.path.join(_BASE_DIR, "dataset", "subway_congestion.csv")
-_station_number_map: dict[str, int] = (
-    pd.read_csv(_DATASET_PATH)[["출발역", "역번호"]]
-    .drop_duplicates("출발역")
-    .set_index("출발역")["역번호"]
-    .to_dict()
-)
 
 
 def predict_congestion(
@@ -58,23 +49,21 @@ def predict_congestion(
     station_encoded   = station_encoder.transform([station])[0]
     direction_encoded = direction_encoder.transform([direction])[0]
 
-    # Station number lookup (geographic feature)
-    station_number = _station_number_map.get(station, 0)
+    # Map day_type (0=weekday, 1=saturday, 2=sunday) → IsWeekend (0 or 1)
+    is_weekend = 1 if day_type >= 1 else 0
 
-    # Compute cyclic time features
-    hour_sin = np.sin(2 * np.pi * hour / 24.0)
-    hour_cos = np.cos(2 * np.pi * hour / 24.0)
+    # Compute RushHour server-side (7-9 AM or 5-7 PM)
+    rush_hour = 1 if (7.0 <= hour <= 9.0) or (17.0 <= hour <= 19.0) else 0
 
-    # Build input DataFrame with exact feature order the model expects
+    # Build input DataFrame with exact feature order the model expects:
+    # ['Hour', 'IsWeekend', 'RushHour', '호선_encoded', '출발역_encoded', '상하구분_encoded']
     input_data = pd.DataFrame({
         "Hour":            [float(hour)],
-        "DayType":         [int(day_type)],
-        "HourSin":         [hour_sin],
-        "HourCos":         [hour_cos],
+        "IsWeekend":       [is_weekend],
+        "RushHour":        [rush_hour],
         "호선_encoded":    [line_encoded],
         "출발역_encoded":  [station_encoded],
         "상하구분_encoded": [direction_encoded],
-        "StationNumber":   [int(station_number)],
     })
 
     prediction = model.predict(input_data)

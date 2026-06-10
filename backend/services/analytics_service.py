@@ -23,7 +23,7 @@ _MODEL_DIR = os.path.join(_BASE_DIR, "models")
 
 def get_feature_importances() -> List[Dict[str, Any]]:
     """Return the feature importances (permutation importance if available, fallback to Gini)."""
-    feature_names = ["Hour", "DayType", "HourSin", "HourCos", "Line", "Station", "Direction", "StationNumber"]
+    feature_names = ["Hour", "IsWeekend", "RushHour", "Line", "Station", "Direction"]
     
     try:
         importances_path = os.path.join(_MODEL_DIR, "permutation_importance.pkl")
